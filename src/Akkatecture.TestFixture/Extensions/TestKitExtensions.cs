@@ -34,21 +34,23 @@ namespace Akkatecture.TestFixture.Extensions
 {
     public static class TestKitExtensions
     {
-        public static IFixtureArranger<TAggregate, TIdentity> FixtureFor<TAggregate, TIdentity>(
+        public static IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> FixtureFor<TAggregate, TIdentity, TAggregateSnapshot>(
             this TestKitBase testKit, TIdentity aggregateId)
             where TAggregate : ReceivePersistentActor, IAggregateRoot<TIdentity>
+            where TAggregateSnapshot : AggregateSnapshot<TAggregate, TIdentity>
             where TIdentity : IIdentity
         {
-            return new AggregateFixture<TAggregate, TIdentity>(testKit).For(aggregateId);
+            return new AggregateFixture<TAggregate, TIdentity, TAggregateSnapshot>(testKit).For(aggregateId);
         }
         
-        public static IFixtureArranger<TAggregate, TIdentity> FixtureFor<TAggregateManager, TAggregate, TIdentity>(
+        public static IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> FixtureFor<TAggregateManager, TAggregate, TIdentity, TAggregateSnapshot>(
             this TestKitBase testKit, Expression<Func<TAggregateManager>> aggregateManagerFactory, TIdentity aggregateId)
             where TAggregateManager : ReceiveActor, IAggregateManager<TAggregate, TIdentity>
             where TAggregate : ReceivePersistentActor, IAggregateRoot<TIdentity>
+            where TAggregateSnapshot : AggregateSnapshot<TAggregate, TIdentity>
             where TIdentity : IIdentity
         {
-            return new AggregateFixture<TAggregate, TIdentity>(testKit).Using(aggregateManagerFactory,aggregateId);
+            return new AggregateFixture<TAggregate, TIdentity, TAggregateSnapshot>(testKit).Using(aggregateManagerFactory,aggregateId);
         }
     }
 }

@@ -1,4 +1,8 @@
-// The MIT License (MIT)
+﻿// The MIT License (MIT)
+//
+// Copyright (c) 2015-2021 Rasmus Mikkelsen
+// Copyright (c) 2015-2021 eBay Software Foundation
+// Modified from original source https://github.com/eventflow/EventFlow
 //
 // Copyright (c) 2018 - 2021 Lutando Ngqakaza
 // https://github.com/Lutando/Akkatecture 
@@ -21,23 +25,15 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-using Akka.Persistence;
-using Akkatecture.Aggregates;
 using Akkatecture.Aggregates.Snapshot;
-using Akkatecture.Commands;
 using Akkatecture.Core;
 
-namespace Akkatecture.TestFixture.Aggregates
+namespace Akkatecture.Aggregates
 {
-    public interface IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot>
-        where TAggregate : ReceivePersistentActor, IAggregateRoot<TIdentity>
-        where TAggregateSnapshot : AggregateSnapshot<TAggregate, TIdentity>
-        where TIdentity : IIdentity
+    public abstract class AggregateSnapshot<TAggregate, TIdentity>: IAggregateSnapshot
+    where TAggregate : IAggregateRoot<TIdentity>
+    where TIdentity : IIdentity
     {
-        IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> For(TIdentity aggregateId);
-        IFixtureExecutor<TAggregate, TIdentity> GivenNothing();
-        IFixtureExecutor<TAggregate, TIdentity> Given(params IAggregateEvent<TAggregate, TIdentity>[] aggregateEvents);
-        IFixtureExecutor<TAggregate, TIdentity> Given(TAggregateSnapshot aggregateSnapshot, long snapshotSequenceNumber);
-        IFixtureExecutor<TAggregate, TIdentity> Given(params ICommand<TAggregate, TIdentity>[] commands);
+
     }
 }

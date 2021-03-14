@@ -30,7 +30,7 @@ namespace Akkatecture.Tests.UnitTests.Fixtures
             //TODO - https://dev.azure.com/lutando/Akkatecture/_workitems/edit/23/
             using (var testKit = new TestKit(_config, "fixture-tests-1"))
             {
-                var fixture = new AggregateFixture<TestAggregate, TestAggregateId>(testKit);
+                var fixture = new AggregateFixture<TestAggregate, TestAggregateId, TestAggregateSnapshot>(testKit);
                 var aggregateIdentity = TestAggregateId.New;
 
                 fixture
@@ -48,7 +48,7 @@ namespace Akkatecture.Tests.UnitTests.Fixtures
         {
             using (var testKit = new TestKit(_config,"fixture-tests-2"))
             {
-                var fixture = new AggregateFixture<TestAggregate, TestAggregateId>(testKit);
+                var fixture = new AggregateFixture<TestAggregate, TestAggregateId, TestAggregateSnapshot>(testKit);
                 var aggregateIdentity = TestAggregateId.New;
 
                 fixture.Using(() => new TestAggregateManager(), aggregateIdentity);
@@ -64,7 +64,7 @@ namespace Akkatecture.Tests.UnitTests.Fixtures
         {
             using (var testKit = new TestKit(_config,"fixture-tests-3"))
             {
-                var fixture = new AggregateFixture<TestAggregate, TestAggregateId>(testKit);
+                var fixture = new AggregateFixture<TestAggregate, TestAggregateId, TestAggregateSnapshot>(testKit);
                 var aggregateIdentity = TestAggregateId.New;
                 var events = new List<IAggregateEvent<TestAggregate, TestAggregateId>>();
                 events.Add(new TestCreatedEvent(aggregateIdentity));
@@ -100,7 +100,7 @@ namespace Akkatecture.Tests.UnitTests.Fixtures
         {
             using (var testKit = new TestKit(_config,"fixture-tests-4"))
             {
-                var fixture = new AggregateFixture<TestAggregate, TestAggregateId>(testKit);
+                var fixture = new AggregateFixture<TestAggregate, TestAggregateId, TestAggregateSnapshot>(testKit);
                 var aggregateIdentity = TestAggregateId.New;
                 var snapshot = new TestAggregateSnapshot(Enumerable.Range(0, 10)
                     .Select(x => new TestAggregateSnapshot.TestModel(Guid.NewGuid())).ToList());
@@ -114,11 +114,11 @@ namespace Akkatecture.Tests.UnitTests.Fixtures
                 snapshotStore.Tell(new LoadSnapshot(aggregateIdentity.Value, new SnapshotSelectionCriteria(long.MaxValue, DateTime.MaxValue), long.MaxValue), receiverProbe.Ref);
                 
                 receiverProbe.ExpectMsg<LoadSnapshotResult>(x =>
-                    x.Snapshot.Snapshot is CommittedSnapshot<TestAggregate, TestAggregateId, IAggregateSnapshot<TestAggregate, TestAggregateId>> &&
+                    x.Snapshot.Snapshot is CommittedSnapshot<TestAggregate, TestAggregateId, TestAggregateSnapshot> &&
                     x.Snapshot.Metadata.SequenceNr == snapshotSequenceNumber &&
                     x.Snapshot.Metadata.PersistenceId == aggregateIdentity.Value &&
                     x.Snapshot.Snapshot
-                        .As<CommittedSnapshot<TestAggregate, TestAggregateId,IAggregateSnapshot<TestAggregate, TestAggregateId>>>().AggregateSnapshot
+                        .As<CommittedSnapshot<TestAggregate, TestAggregateId, TestAggregateSnapshot>>().AggregateSnapshot
                         .As<TestAggregateSnapshot>().Tests.Count == snapshot.Tests.Count &&
                     x.ToSequenceNr == long.MaxValue);
                 

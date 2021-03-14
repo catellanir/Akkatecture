@@ -38,8 +38,10 @@ using Akkatecture.TestHelpers.Aggregates.Snapshots;
 
 namespace Akkatecture.TestHelpers.Aggregates
 {
+
+
     [AggregateName("Test")]
-    public sealed class TestAggregate : AggregateRoot<TestAggregate, TestAggregateId, TestAggregateState>, 
+    public sealed class TestAggregate : AggregateRoot<TestAggregate, TestAggregateId, TestAggregateState, TestAggregateSnapshot>, 
         IExecute<CreateTestCommand>,
         IExecute<CreateAndAddTwoTestsCommand>,
         IExecute<AddTestCommand>,
@@ -234,7 +236,7 @@ namespace Akkatecture.TestHelpers.Aggregates
             return true;
         }
 
-        protected override IAggregateSnapshot<TestAggregate, TestAggregateId> CreateSnapshot()
+        protected override TestAggregateSnapshot CreateSnapshot()
         {
             return new TestAggregateSnapshot(State.TestCollection
                 .Select(x => new TestAggregateSnapshot.TestModel(x.Id.GetGuid())).ToList());

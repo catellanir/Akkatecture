@@ -17,7 +17,7 @@ using Akkatecture.TestHelpers.Aggregates.Snapshots;
 namespace Akkatecture.TestHelpers.Aggregates.Sagas.TestAsync
 {
     [SagaName("TestAsyncSaga")]
-    public class TestAsyncSaga: AggregateSaga<TestAsyncSaga,TestAsyncSagaId,TestAsyncSagaState>,
+    public class TestAsyncSaga: AggregateSaga<TestAsyncSaga,TestAsyncSagaId, TestAsyncSagaState, TestAsyncSagaSnapshot>,
         ISagaIsStartedByAsync<TestAggregate, TestAggregateId, TestSentEvent>,
         ISagaHandlesAsync<TestAggregate, TestAggregateId, TestReceivedEvent>
     {
@@ -60,7 +60,7 @@ namespace Akkatecture.TestHelpers.Aggregates.Sagas.TestAsync
             return Task.CompletedTask;
         }
 
-        protected override IAggregateSnapshot<TestAsyncSaga, TestAsyncSagaId> CreateSnapshot()
+        protected override TestAsyncSagaSnapshot CreateSnapshot()
         {
             return new TestAsyncSagaSnapshot
             {

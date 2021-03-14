@@ -45,13 +45,22 @@ using SnapshotMetadata = Akkatecture.Aggregates.Snapshot.SnapshotMetadata;
 
 namespace Akkatecture.Sagas.AggregateSaga
 {
-    public abstract class AggregateSaga<TAggregateSaga, TIdentity, TSagaState> : ReceivePersistentActor, IAggregateSaga<TIdentity>
-        where TAggregateSaga : AggregateSaga<TAggregateSaga, TIdentity, TSagaState>
-        where TIdentity : SagaId<TIdentity>
-        where TSagaState : SagaState<TAggregateSaga,TIdentity, IMessageApplier<TAggregateSaga, TIdentity>>
+    public abstract class AggregateSaga<TAggregateSaga, TIdentity, TSagaState> : AggregateSaga<TAggregateSaga, TIdentity, TSagaState, NullAggregateSnapshot<TAggregateSaga, TIdentity>>
+    where TAggregateSaga : AggregateSaga<TAggregateSaga, TIdentity, TSagaState>
+    where TIdentity : SagaId<TIdentity>
+    where TSagaState : SagaState<TAggregateSaga, TIdentity, IMessageApplier<TAggregateSaga, TIdentity>>
+    {
+
+    }
+
+    public abstract class AggregateSaga<TAggregateSaga, TIdentity, TSagaState, TSagaSnapshot> :  ReceivePersistentActor, IAggregateSaga<TIdentity>
+    where TAggregateSaga : AggregateSaga<TAggregateSaga, TIdentity, TSagaState, TSagaSnapshot>
+    where TSagaSnapshot : AggregateSnapshot<TAggregateSaga, TIdentity>
+    where TIdentity : SagaId<TIdentity>
+    where TSagaState : SagaState<TAggregateSaga, TIdentity, IMessageApplier<TAggregateSaga, TIdentity>>
     {
         private static readonly IReadOnlyDictionary<Type, Action<TSagaState, IAggregateEvent>> ApplyMethodsFromState = typeof(TSagaState).GetAggregateStateEventApplyMethods<TAggregateSaga, TIdentity, TSagaState>();
-        private static readonly IReadOnlyDictionary<Type, Action<TSagaState, IAggregateSnapshot>> HydrateMethodsFromState = typeof(TSagaState).GetAggregateSnapshotHydrateMethods<TAggregateSaga, TIdentity, TSagaState>();
+        private static readonly IReadOnlyDictionary<Type, Action<TSagaState, TSagaSnapshot>> HydrateMethodsFromState = typeof(TSagaState).GetAggregateSnapshotHydrateMethods<TAggregateSaga, TIdentity, TSagaState, TSagaSnapshot>();
         private static readonly IAggregateName SagaName = typeof(TAggregateSaga).GetSagaName();
         private static readonly List<Type> _sagaTimeoutTypes = new List<Type>();
         private Dictionary<Type, IActorRef> SagaTimeoutManagers { get; set; }
@@ -446,7 +455,7 @@ namespace Akkatecture.Sagas.AggregateSaga
             return committedEvent;
         }
 
-        protected virtual IAggregateSnapshot<TAggregateSaga, TIdentity> CreateSnapshot()
+        protected virtual TSagaSnapshot CreateSnapshot()
         {
             Log.Info("AggregateSaga of Name={0}, and Id={2}; attempted to create a snapshot, override the {2}() method to get snapshotting to function.", Name, Id, nameof(CreateSnapshot));
             return null;
@@ -501,7 +510,7 @@ namespace Akkatecture.Sagas.AggregateSaga
                     };
 
                     var committedSnapshot =
-                        new CommittedSnapshot<TAggregateSaga, TIdentity, IAggregateSnapshot<TAggregateSaga, TIdentity>>(
+                        new CommittedSnapshot<TAggregateSaga, TIdentity, TSagaSnapshot>(
                             Id,
                             aggregateSnapshot,
                             snapshotMetadata,
@@ -563,7 +572,7 @@ namespace Akkatecture.Sagas.AggregateSaga
             try
             {
                 Log.Debug("AggregateSaga of Name={0}, and Id={1}; has received a SnapshotOffer of Type={2}.", Name, Id, aggregateSnapshotOffer.Snapshot.GetType().PrettyPrint());
-                var comittedSnapshot = aggregateSnapshotOffer.Snapshot as CommittedSnapshot<TAggregateSaga, TIdentity, IAggregateSnapshot<TAggregateSaga, TIdentity>>;
+                var comittedSnapshot = aggregateSnapshotOffer.Snapshot as CommittedSnapshot<TAggregateSaga, TIdentity, TSagaSnapshot>;
                 HydrateSnapshot(comittedSnapshot.AggregateSnapshot, aggregateSnapshotOffer.Metadata.SequenceNr);
             }
             catch (Exception exception)
@@ -576,7 +585,7 @@ namespace Akkatecture.Sagas.AggregateSaga
             return true;
         }
 
-        protected virtual void HydrateSnapshot(IAggregateSnapshot<TAggregateSaga, TIdentity> aggregateSnapshot, long version)
+        protected virtual void HydrateSnapshot(TSagaSnapshot aggregateSnapshot, long version)
         {
             var snapshotHydrater = GetSnapshotHydrateMethods(aggregateSnapshot);
 
@@ -585,12 +594,11 @@ namespace Akkatecture.Sagas.AggregateSaga
             Version = version;
         }
 
-        protected Action<IAggregateSnapshot> GetSnapshotHydrateMethods<TAggregateSnapshot>(TAggregateSnapshot aggregateEvent)
-            where TAggregateSnapshot : IAggregateSnapshot<TAggregateSaga, TIdentity>
+        protected Action<TSagaSnapshot> GetSnapshotHydrateMethods(TSagaSnapshot aggregateEvent)
         {
             var snapshotType = aggregateEvent.GetType();
 
-            Action<TSagaState, IAggregateSnapshot> hydrateMethod;
+            Action<TSagaState, TSagaSnapshot> hydrateMethod;
             if (!HydrateMethodsFromState.TryGetValue(snapshotType, out hydrateMethod))
                 throw new NotImplementedException($"SagaState of Type={State.GetType().PrettyPrint()} does not have a 'Hydrate' method that takes in an aggregate snapshot of Type={snapshotType.PrettyPrint()} as an argument.");
 

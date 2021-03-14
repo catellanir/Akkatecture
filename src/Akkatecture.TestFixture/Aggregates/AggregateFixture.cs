@@ -36,8 +36,9 @@ using AkkaSnapshotMetadata = Akka.Persistence.SnapshotMetadata;
 namespace Akkatecture.TestFixture.Aggregates
 {
     
-    public class AggregateFixture<TAggregate, TIdentity> : IFixtureArranger<TAggregate, TIdentity> , IFixtureExecutor<TAggregate,TIdentity> , IFixtureAsserter<TAggregate, TIdentity>
+    public class AggregateFixture<TAggregate, TIdentity, TAggregateSnapshot> : IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> , IFixtureExecutor<TAggregate,TIdentity> , IFixtureAsserter<TAggregate, TIdentity>
         where TAggregate : ReceivePersistentActor, IAggregateRoot<TIdentity>
+        where TAggregateSnapshot : AggregateSnapshot<TAggregate, TIdentity>
         where TIdentity : IIdentity
     {
         private readonly TestKitBase _testKit;
@@ -54,7 +55,7 @@ namespace Akkatecture.TestFixture.Aggregates
         }
 
 
-        public IFixtureArranger<TAggregate, TIdentity> For(TIdentity aggregateId)
+        public IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> For(TIdentity aggregateId)
         {
             if(aggregateId == null)
                 throw new ArgumentNullException(nameof(aggregateId));
@@ -72,7 +73,7 @@ namespace Akkatecture.TestFixture.Aggregates
             return this;
         }
 
-        public IFixtureArranger<TAggregate, TIdentity> Using<TAggregateManager>(
+        public IFixtureArranger<TAggregate, TIdentity, TAggregateSnapshot> Using<TAggregateManager>(
             Expression<Func<TAggregateManager>> aggregateManagerFactory, TIdentity aggregateId)
             where TAggregateManager : ReceiveActor, IAggregateManager<TAggregate, TIdentity>
         {
@@ -108,7 +109,7 @@ namespace Akkatecture.TestFixture.Aggregates
             return this;
         }
         
-        public IFixtureExecutor<TAggregate, TIdentity> Given(IAggregateSnapshot<TAggregate,TIdentity> aggregateSnapshot, long snapshotSequenceNumber)
+        public IFixtureExecutor<TAggregate, TIdentity> Given(TAggregateSnapshot aggregateSnapshot, long snapshotSequenceNumber)
         {
             InitializeSnapshotStore(AggregateId, aggregateSnapshot, snapshotSequenceNumber);
             
@@ -215,8 +216,7 @@ namespace Akkatecture.TestFixture.Aggregates
             }
         }
         
-        private void InitializeSnapshotStore<TAggregateSnapshot>(TIdentity aggregateId, TAggregateSnapshot aggregateSnapshot, long sequenceNumber)
-            where TAggregateSnapshot : IAggregateSnapshot<TAggregate, TIdentity>
+        private void InitializeSnapshotStore(TIdentity aggregateId, TAggregateSnapshot aggregateSnapshot, long sequenceNumber)
         {
             var snapshotStore = Persistence.Instance.Apply(_testKit.Sys).SnapshotStoreFor(null);
             var committedSnapshot = new CommittedSnapshot<TAggregate, TIdentity, TAggregateSnapshot>(aggregateId, aggregateSnapshot, new SnapshotMetadata(), DateTimeOffset.UtcNow, sequenceNumber);
@@ -227,7 +227,6 @@ namespace Akkatecture.TestFixture.Aggregates
             AggregateEventTestProbe.ExpectMsg<SaveSnapshotSuccess>(x =>
                 x.Metadata.SequenceNr == sequenceNumber &&
                 x.Metadata.PersistenceId == aggregateId.ToString());
-            
         }
         
     }

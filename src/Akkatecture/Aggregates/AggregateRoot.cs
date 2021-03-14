@@ -42,13 +42,30 @@ using SnapshotMetadata = Akkatecture.Aggregates.Snapshot.SnapshotMetadata;
 
 namespace Akkatecture.Aggregates
 {
-    public abstract class AggregateRoot<TAggregate, TIdentity, TAggregateState> : ReceivePersistentActor, IAggregateRoot<TIdentity>
+    public sealed class NullAggregateSnapshot<TAggregate, TIdentity> : AggregateSnapshot<TAggregate, TIdentity>
+                where TAggregate : IAggregateRoot<TIdentity>
+        where TIdentity : IIdentity
+    {
+    }
+
+    public abstract class AggregateRoot<TAggregate, TIdentity, TAggregateState> : AggregateRoot<TAggregate, TIdentity, TAggregateState, NullAggregateSnapshot<TAggregate, TIdentity>>
         where TAggregate : AggregateRoot<TAggregate, TIdentity, TAggregateState>
-        where TAggregateState : AggregateState<TAggregate,TIdentity, IMessageApplier<TAggregate,TIdentity>>
+        where TAggregateState : AggregateState<TAggregate, TIdentity, IMessageApplier<TAggregate, TIdentity>>
+        where TIdentity : IIdentity
+    {
+        protected AggregateRoot(TIdentity id) : base(id)
+        {
+        }
+    }
+
+    public abstract class AggregateRoot<TAggregate, TIdentity, TAggregateState, TAggregateSnapshot> : ReceivePersistentActor, IAggregateRoot<TIdentity>
+        where TAggregate : AggregateRoot<TAggregate, TIdentity, TAggregateState, TAggregateSnapshot>
+        where TAggregateState : AggregateState<TAggregate, TIdentity, IMessageApplier<TAggregate,TIdentity>>
+        where TAggregateSnapshot: AggregateSnapshot<TAggregate, TIdentity>
         where TIdentity : IIdentity
     {
         private static readonly IReadOnlyDictionary<Type, Action<TAggregateState, IAggregateEvent>> ApplyMethodsFromState = typeof(TAggregateState).GetAggregateStateEventApplyMethods<TAggregate, TIdentity, TAggregateState>();
-        private static readonly IReadOnlyDictionary<Type, Action<TAggregateState, IAggregateSnapshot>> HydrateMethodsFromState =  typeof(TAggregateState).GetAggregateSnapshotHydrateMethods<TAggregate, TIdentity, TAggregateState>();
+        private static readonly IReadOnlyDictionary<Type, Action<TAggregateState, TAggregateSnapshot>> HydrateMethodsFromState =  typeof(TAggregateState).GetAggregateSnapshotHydrateMethods<TAggregate, TIdentity, TAggregateState, TAggregateSnapshot>();
         private static readonly IAggregateName AggregateName = typeof(TAggregate).GetAggregateName();
         private CircularBuffer<ISourceId> _previousSourceIds = new CircularBuffer<ISourceId>(100);
         private ICommand<TAggregate, TIdentity> PinnedCommand { get; set; }
@@ -241,7 +258,7 @@ namespace Akkatecture.Aggregates
             var committedEvent = new CommittedEvent<TAggregate, TIdentity, TAggregateEvent>(Id, aggregateEvent,eventMetadata,now,aggregateSequenceNumber);
             return committedEvent;
         }
-        protected virtual IAggregateSnapshot<TAggregate, TIdentity> CreateSnapshot()
+        protected virtual TAggregateSnapshot CreateSnapshot()
         {
             Log.Warning("Aggregate of Name={0}, and Id={1}; attempted to create a snapshot, override the {2}() method to get snapshotting to function.", Name, Id, nameof(CreateSnapshot));
             return null;
@@ -279,7 +296,7 @@ namespace Akkatecture.Aggregates
                     };
 
                     var committedSnapshot =
-                        new CommittedSnapshot<TAggregate, TIdentity, IAggregateSnapshot<TAggregate, TIdentity>>(
+                        new CommittedSnapshot<TAggregate, TIdentity, TAggregateSnapshot>(
                             Id,
                             aggregateSnapshot,
                             snapshotMetadata,
@@ -376,15 +393,14 @@ namespace Akkatecture.Aggregates
             return aggregateApplyMethod;
         }
 
-        protected Action<IAggregateSnapshot> GetSnapshotHydrateMethods<TAggregateSnapshot>(TAggregateSnapshot aggregateEvent)
-            where TAggregateSnapshot : class, IAggregateSnapshot<TAggregate, TIdentity>
+        protected Action<TAggregateSnapshot> GetSnapshotHydrateMethods(TAggregateSnapshot aggregateEvent)
+            //where TAggregateSnapshot : class, IAggregateSnapshot<TAggregate, TIdentity>
         {
             var snapshotType = aggregateEvent.GetType();
 
-            Action<TAggregateState, IAggregateSnapshot> hydrateMethod;
-            if (!HydrateMethodsFromState.TryGetValue(snapshotType, out hydrateMethod))
+            if (!HydrateMethodsFromState.TryGetValue(snapshotType, out Action<TAggregateState, TAggregateSnapshot> hydrateMethod))
                 throw new NotImplementedException($"AggregateState of Type={State.GetType().PrettyPrint()} does not have a 'Hydrate' method that takes in an aggregate snapshot of Type={snapshotType.PrettyPrint()} as an argument.");
-            
+
 
 
             var snapshotHydrateMethod = hydrateMethod.Bind(State);
@@ -401,7 +417,7 @@ namespace Akkatecture.Aggregates
             Version++;
         }
 
-        protected virtual void HydrateSnapshot(IAggregateSnapshot<TAggregate, TIdentity> aggregateSnapshot, long version)
+        protected virtual void HydrateSnapshot(TAggregateSnapshot aggregateSnapshot, long version)
         {
             var snapshotHydrater = GetSnapshotHydrateMethods(aggregateSnapshot);
 
@@ -431,7 +447,7 @@ namespace Akkatecture.Aggregates
             try
             {
                 Log.Debug("Aggregate of Name={0}, and Id={1}; has received a SnapshotOffer of Type={2}.", Name, Id, aggregateSnapshotOffer.Snapshot.GetType().PrettyPrint());
-                var comittedSnapshot = aggregateSnapshotOffer.Snapshot as CommittedSnapshot<TAggregate,TIdentity, IAggregateSnapshot<TAggregate, TIdentity>>;
+                var comittedSnapshot = aggregateSnapshotOffer.Snapshot as CommittedSnapshot<TAggregate,TIdentity, TAggregateSnapshot>;
                 HydrateSnapshot(comittedSnapshot.AggregateSnapshot, aggregateSnapshotOffer.Metadata.SequenceNr);
             }
             catch (Exception exception)

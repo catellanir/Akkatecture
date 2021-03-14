@@ -29,7 +29,7 @@ namespace Akkatecture.Aggregates.Snapshot
     public class CommittedSnapshot<TAggregate, TIdentity, TAggregateSnapshot>
         where TAggregate : IAggregateRoot<TIdentity>
         where TIdentity : IIdentity
-        where TAggregateSnapshot : IAggregateSnapshot<TAggregate, TIdentity>
+        where TAggregateSnapshot : AggregateSnapshot<TAggregate, TIdentity>
     {
         public TIdentity AggregateIdentity { get; }
         public TAggregateSnapshot AggregateSnapshot { get; }

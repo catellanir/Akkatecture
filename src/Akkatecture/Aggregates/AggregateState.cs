@@ -31,6 +31,7 @@ using Akkatecture.Extensions;
 
 namespace Akkatecture.Aggregates
 {
+
     public abstract class AggregateState<TAggregate, TIdentity> : AggregateState<TAggregate, TIdentity, IMessageApplier<TAggregate, TIdentity>>
         where TAggregate : IAggregateRoot<TIdentity>
         where TIdentity : IIdentity
